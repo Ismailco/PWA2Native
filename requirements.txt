@@ -1,0 +1,4 @@
+# Core dependencies
+requests>=2.31.0
+colorama>=0.4.6
+pathlib>=1.0.1

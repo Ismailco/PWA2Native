@@ -65,47 +65,25 @@ class IconProcessor:
 
         return best_icon
 
-    def process_android_icon(self, source_icon: str, mipmap_dir: Path, size: int) -> bool:
+    def process_android_icon(self, source_icon: str, output_path: str, size: int) -> bool:
         """Process icon for Android with proper shape and padding"""
         try:
+            from PIL import Image, ImageOps
+
             # Open and resize the icon
-            img = Image.open(source_icon)
-
-            # Create a square image with padding
-            desired_size = size
-            img = ImageOps.fit(img, (int(desired_size * 0.75), int(desired_size * 0.75)), Image.Resampling.LANCZOS)
-
-            # Create foreground layer with transparency
-            foreground = Image.new('RGBA', (desired_size, desired_size), (0, 0, 0, 0))
-
-            # Calculate padding
-            offset = (desired_size - img.size[0]) // 2
-
-            # Paste the resized image onto the foreground
-            foreground.paste(img, (offset, offset))
+            icon = Image.open(source_icon)
+            icon = icon.resize((size, size), Image.Resampling.LANCZOS)
 
             # Create circular mask
-            mask = Image.new('L', (desired_size, desired_size), 0)
-            draw = ImageDraw.Draw(mask)
-            draw.ellipse([0, 0, desired_size, desired_size], fill=255)
+            mask = Image.new('L', (size, size), 0)
+            ImageOps.fit(icon, mask.size, centering=(0.5, 0.5))
 
-            # Apply circular mask to foreground
-            foreground.putalpha(mask)
-
-            # Save foreground layer
-            foreground.save(mipmap_dir / "ic_launcher_foreground.png")
-
-            # Create adaptive icon background
-            background = Image.new('RGBA', (desired_size, desired_size), self.packager.background_color)
-            background.save(mipmap_dir / "ic_launcher_background.png")
-
-            # Create preview of the final icon
-            final_icon = Image.alpha_composite(background.convert('RGBA'), foreground)
-            final_icon.save(mipmap_dir / "ic_launcher.png")
-
+            # Save the processed icon
+            icon.save(output_path, 'PNG')
             return True
+
         except Exception as e:
-            print(f"{Fore.YELLOW}Warning: Could not process Android icon: {e}{Style.RESET_ALL}")
+            print(f"Error processing icon: {e}")
             return False
 
     def process_macos_icon(self, source_icon: str, output_path: str, size: int) -> bool:

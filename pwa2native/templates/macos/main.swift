@@ -1,16 +1,29 @@
 import Cocoa
 import WebKit
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var window: NSWindow!
     var webView: WKWebView!
     var shortcutURLs: [String: String] = [:]
-    var navigationMenu: NSMenu?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Create the main menu
-        setupMenu()
+        // Ensure we're running as an agent
+        NSApp.setActivationPolicy(.regular)
 
+        setupWindow()
+        setupMenu()
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        return false // Prevent app from terminating when window is closed
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showWindow(nil)
+        return true
+    }
+
+    func setupWindow() {
         // Setup window
         let windowRect = NSRect(x: 0, y: 0, width: 1024, height: 768)
         window = NSWindow(
@@ -22,6 +35,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         window.title = "${app_name}"
         window.center()
+        window.delegate = self
 
         // Setup WebView with navigation
         let config = WKWebViewConfiguration()
@@ -52,6 +66,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             keyEquivalent: ""
         )
         appMenu.addItem(aboutItem)
+        appMenu.addItem(NSMenuItem.separator())
+
+        // Add Show/Hide Window item
+        let showWindowItem = NSMenuItem(
+            title: "Show Window",
+            action: #selector(toggleWindow(_:)),
+            keyEquivalent: "1"
+        )
+        showWindowItem.keyEquivalentModifierMask = .command
+        appMenu.addItem(showWindowItem)
         appMenu.addItem(NSMenuItem.separator())
 
         let quitItem = NSMenuItem(
@@ -103,6 +127,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.mainMenu = mainMenu
     }
 
+    // Window delegate methods
+    func windowWillClose(_ notification: Notification) {
+        window.orderOut(nil)
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        window.orderOut(nil)
+        return false
+    }
+
+    @objc func toggleWindow(_ sender: Any?) {
+        if window.isVisible {
+            window.orderOut(nil)
+        } else {
+            showWindow(sender)
+        }
+    }
+
+    @objc func showWindow(_ sender: Any?) {
+        if !window.isVisible {
+            window.makeKeyAndOrderFront(nil)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     @objc func navigateBack(_ sender: Any?) {
         if webView.canGoBack {
             webView.goBack()
@@ -123,6 +172,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let urlString = shortcutURLs[sender.title],
            let url = URL(string: urlString.hasPrefix("http") ? urlString : "${url}" + urlString) {
             webView.load(URLRequest(url: url))
+            showWindow(nil)
         }
     }
 }
@@ -133,7 +183,10 @@ extension AppDelegate: WKNavigationDelegate {
     }
 }
 
+// Initialize the application
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate
+app.activate(ignoringOtherApps: true)
 app.run()
+

@@ -68,13 +68,13 @@ Basic usage:
 Package for all platforms:
 
 ```bash
-python pwa_packager.py https://my-pwa.com --name "My PWA"
+python pwa2native https://my-pwa.com --name "My PWA"
 ```
 
 Package only for Android:
 
 ```bash
-python pwa_packager.py https://my-pwa.com --name "My PWA" --platforms android
+python pwa2native https://my-pwa.com --name "My PWA" --platforms android
 ```
 
 ## Platform-Specific Build Instructions

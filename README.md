@@ -11,13 +11,13 @@
 
 </div>
 
-# PWA2Native
+# 🚀 PWA2Native
 
 PWA2Native is a command-line tool that converts Progressive Web Apps (PWAs) into native applications for multiple platforms. Currently under development, this tool aims to simplify the process of packaging PWAs as native apps for Android, iOS, macOS, and Windows.
 
 ⚠️ **Note:** This project is currently in development and not ready for production use.
 
-## Features
+## ✨ Features
 
 - Convert PWAs to native applications
 - Support for multiple platforms:
@@ -25,10 +25,10 @@ PWA2Native is a command-line tool that converts Progressive Web Apps (PWAs) into
   - 🚧 iOS (using WKWebView) - In development
   - ✅ macOS (using WebKit)
   - 🚧 Windows (using WebView2) - In development
-- Automatic manifest fetching and parsing
-- Platform-specific build configuration generation
+- 🔄 Automatic manifest fetching and parsing
+- ⚙️ Platform-specific build configuration generation
 
-## Prerequisites
+## 📥 Prerequisites
 
 - Python 3.6 or higher
 - For Android builds:
@@ -38,7 +38,7 @@ PWA2Native is a command-line tool that converts Progressive Web Apps (PWAs) into
   - Xcode Command Line Tools
   - Swift compiler
 
-## Installation
+## 🔧 Installation
 
 To install PWA2Native, clone the repository and run the setup script:
 
@@ -47,7 +47,7 @@ git clone https://github.com/ismailco/PWA2Native.git
 cd PWA2Native
 ```
 
-## Usage
+## 💻 Usage
 
 Basic usage:
 
@@ -55,7 +55,7 @@ Basic usage:
 ./pwa2native.py https://example.com --name "My PWA" --platforms android,macos
 ```
 
-### Arguments
+### 🎮 Arguments
 
 - `url`: URL of the PWA (required)
 - `--name`: Name of the application (default: "PWA App")
@@ -63,7 +63,7 @@ Basic usage:
   - Available options: android,ios,macos,windows
 - `--output`: Output directory (default: "./dist")
 
-### Examples
+### 📱 Examples
 
 Package for all platforms:
 
@@ -77,9 +77,9 @@ Package only for Android:
 python pwa2native.py https://my-pwa.com --name "My PWA" --platforms android
 ```
 
-## Platform-Specific Build Instructions
+## 🛠️ Platform-Specific Build Instructions
 
-### Android
+### 🤖 Android
 1. Navigate to the generated Android project directory:
    ```bash
    cd dist/android
@@ -90,7 +90,7 @@ python pwa2native.py https://my-pwa.com --name "My PWA" --platforms android
    ./gradlew assembleRelease
    ```
 
-### macOS
+### 🍎 macOS
 1. Navigate to the generated macOS project directory:
    ```bash
    cd dist/macos
@@ -104,13 +104,13 @@ python pwa2native.py https://my-pwa.com --name "My PWA" --platforms android
 
 We love your input! We want to make contributing to PWA2Native as easy and transparent as possible, whether it's:
 
-- Reporting a bug
-- Discussing the current state of the code
-- Submitting a fix
-- Proposing new features
-- Becoming a maintainer
+- 🐛 Reporting a bug
+- 💡 Discussing the current state of the code
+- 📝 Submitting a fix
+- ✨ Proposing new features
+- 💪 Becoming a maintainer
 
-### Development Process
+### 📋 Development Process
 
 We use GitHub to host code, to track issues and feature requests, as well as accept pull requests.
 
@@ -121,20 +121,20 @@ We use GitHub to host code, to track issues and feature requests, as well as acc
 5. Make sure your code lints
 6. Issue that pull request!
 
-### Pull Request Process
+### 🔄 Pull Request Process
 
 1. Update the README.md with details of changes to the interface, if applicable
 2. Update the CHANGELOG.md with notes on your changes
 3. The PR will be merged once you have the sign-off of at least one other developer
 
-### Any Contributions You Make Will Be Under the MIT License
+### 📜 Any Contributions You Make Will Be Under the MIT License
 In short, when you submit code changes, your submissions are understood to be under the same [MIT License](LICENSE) that covers the project. Feel free to contact the maintainers if that's a concern.
 
-### Report Bugs Using GitHub's [Issue Tracker](https://github.com/ismailco/PWA2Native/issues)
+### 🐞 Report Bugs Using GitHub's [Issue Tracker](https://github.com/ismailco/PWA2Native/issues)
 
 We use GitHub issues to track public bugs. Report a bug by [opening a new issue](https://github.com/ismailco/PWA2Native/issues/new); it's that easy!
 
-### Write Bug Reports With Detail, Background, and Sample Code
+### ✍️ Write Bug Reports With Detail, Background, and Sample Code
 
 **Great Bug Reports** tend to have:
 
@@ -146,21 +146,21 @@ We use GitHub issues to track public bugs. Report a bug by [opening a new issue]
 - What actually happens
 - Notes (possibly including why you think this might be happening, or stuff you tried that didn't work)
 
-### License
+### 📄 License
 By contributing, you agree that your contributions will be licensed under its MIT License.
 
-### References
+### 📚 References
 This document was adapted from the open-source contribution guidelines for [Facebook's Draft](https://github.com/facebook/draft-js/blob/master/CONTRIBUTING.md).
 
-## License
+## 📜 License
 
 [MIT License](LICENSE)
 
-## Disclaimer
+## ⚠️ Disclaimer
 
 This project is in active development and may contain bugs or incomplete features. Use at your own risk in production environments.
 
-## Roadmap
+## 🗺️ Roadmap
 
 - [ ] Complete iOS implementation
 - [ ] Complete Windows implementation
@@ -170,7 +170,7 @@ This project is in active development and may contain bugs or incomplete feature
 - [ ] Improve error handling and validation
 - [ ] Create comprehensive documentation
 
-## Support
+## 💬 Support
 
 For issues and feature requests, please use the GitHub issue tracker.
 

@@ -94,7 +94,7 @@ class PWAPackager:
         self._generate_android_files(android_dir)
 
         print(f"Android project generated at {android_dir}")
-        print("To build: cd android && ./gradlew assembleRelease")
+        print("To build: cd dist/android && gradle wrapper && ./gradlew assembleRelease")
 
     def _generate_android_files(self, android_dir):
         """Generate all necessary Android build files"""
@@ -190,7 +190,7 @@ org.gradle.parallel=true"""
         os.chmod(macos_dir / "build.sh", 0o755)
 
         print(f"macOS project generated at {macos_dir}")
-        print("To build: cd macos && ./build.sh")
+        print("To build: cd dist/macos && ./build.sh")
 
     def package_windows(self):
         """Package for Windows using WebView2"""

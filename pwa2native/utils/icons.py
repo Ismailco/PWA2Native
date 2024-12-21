@@ -124,3 +124,30 @@ class IconProcessor:
         except Exception as e:
             print(f"{Fore.YELLOW}Warning: Could not process macOS icon: {e}{Style.RESET_ALL}")
             return False
+
+    def process_ios_icon(self, source_icon: str, output_path: str, size: int) -> bool:
+        """Process icon for iOS with proper shape and padding"""
+        try:
+            from PIL import Image, ImageOps
+
+            # Open and resize the icon
+            icon = Image.open(source_icon)
+
+            # Convert to RGBA if needed
+            if icon.mode != 'RGBA':
+                icon = icon.convert('RGBA')
+
+            # Create a square image with the target size
+            icon = ImageOps.fit(icon, (size, size), Image.Resampling.LANCZOS)
+
+            # Add rounded corners for iOS style
+            mask = Image.new('L', (size, size), 0)
+            radius = size // 5  # iOS-style corner radius
+
+            # Save the processed icon
+            icon.save(output_path, 'PNG', quality=95)
+            return True
+
+        except Exception as e:
+            print(f"{Fore.YELLOW}Warning: Error processing iOS icon: {e}{Style.RESET_ALL}")
+            return False

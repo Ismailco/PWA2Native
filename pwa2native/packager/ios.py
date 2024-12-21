@@ -28,10 +28,15 @@ class IOSPackager(PWAPackager):
         # Create project directories
         project_name = self.app_name.replace(" ", "")
         project_dir = ios_dir / project_name
+        project_source_dir = project_dir / project_name
+        xcodeproj_dir = project_dir / f"{project_name}.xcodeproj"
+
         for dir_path in [
             project_dir,
-            project_dir / "Assets.xcassets",
-            project_dir / "Assets.xcassets/AppIcon.appiconset"
+            project_source_dir,
+            project_source_dir / "Assets.xcassets",
+            project_source_dir / "Assets.xcassets/AppIcon.appiconset",
+            xcodeproj_dir
         ]:
             dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -39,45 +44,59 @@ class IOSPackager(PWAPackager):
         template_loader = TemplateLoader()
 
         # Generate AppDelegate.swift
-        with open(project_dir / "AppDelegate.swift", "w") as f:
+        with open(project_source_dir / "AppDelegate.swift", "w") as f:
             f.write(template_loader.render_template('ios', 'AppDelegate.swift', {
                 'app_name': self.app_name
             }))
 
         # Generate ViewController.swift
-        with open(project_dir / "ViewController.swift", "w") as f:
+        with open(project_source_dir / "ViewController.swift", "w") as f:
             f.write(template_loader.render_template('ios', 'ViewController.swift', {
                 'url': self.url
             }))
 
         # Generate Info.plist
-        with open(project_dir / "Info.plist", "w") as f:
+        with open(project_source_dir / "Info.plist", "w") as f:
             f.write(self._get_info_plist())
 
         # Process app icon if available
         if app_icon:
-            self._process_ios_icons(app_icon, project_dir / "Assets.xcassets/AppIcon.appiconset")
+            self._process_ios_icons(app_icon, project_source_dir / "Assets.xcassets/AppIcon.appiconset")
 
         # Generate project.pbxproj
-        with open(project_dir / f"{project_name}.xcodeproj/project.pbxproj", "w") as f:
+        with open(xcodeproj_dir / "project.pbxproj", "w") as f:
             f.write(template_loader.render_template('ios', 'project.pbxproj', {
                 'project_name': project_name
             }))
+
+        # Generate build script
+        build_script = template_loader.render_template('ios', 'build.sh', {
+            'project_name': project_name
+        })
+        build_script_path = project_dir / "build.sh"
+        with open(build_script_path, "w") as f:
+            f.write(build_script)
+
+        # Make build script executable
+        os.chmod(build_script_path, 0o755)
+
+        print(f"{Fore.GREEN}iOS project created at: {project_dir}{Style.RESET_ALL}")
+        print("To build the project:")
+        print("1. cd dist/ios/<project_name>")
+        print("2. ./build.sh")
 
     def _process_ios_icons(self, source_icon: str, iconset_dir: Path):
         """Process icons for iOS"""
         # iOS icon sizes
         icon_sizes = {
-            '20x20': ['40', '60'],  # 2x, 3x
-            '29x29': ['58', '87'],  # 2x, 3x
-            '40x40': ['80', '120'], # 2x, 3x
-            '60x60': ['120', '180'], # 2x, 3x
-            '76x76': ['152'],       # 2x
-            '83.5x83.5': ['167'],   # 2x
-            '1024x1024': ['1024']   # 1x
+            '20x20': ['40', '60'],      # 2x, 3x for notifications
+            '29x29': ['58', '87'],      # 2x, 3x for settings
+            '40x40': ['80', '120'],     # 2x, 3x for spotlight
+            '60x60': ['120', '180'],    # 2x, 3x for app icon
+            '1024x1024': ['1024']       # App Store
         }
 
-        # Contents.json template for icon set
+        # Contents.json template
         contents = {
             "images": [],
             "info": {
@@ -86,19 +105,21 @@ class IOSPackager(PWAPackager):
             }
         }
 
+        # Process each icon size
         for base_size, multipliers in icon_sizes.items():
             base = float(base_size.split('x')[0])
             for size in multipliers:
                 target_size = int(size)
                 scale = f"{target_size/base}x"
-
                 icon_name = f"icon_{target_size}.png"
+
+                # Process icon
                 if self.icon_processor.process_ios_icon(source_icon, str(iconset_dir / icon_name), target_size):
                     contents["images"].append({
-                        "size": base_size,
+                        "size": f"{base}x{base}",
                         "idiom": "iphone" if base != 1024 else "ios-marketing",
-                        "filename": icon_name,
-                        "scale": scale
+                        "scale": scale,
+                        "filename": icon_name
                     })
 
         # Write Contents.json

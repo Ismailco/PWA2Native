@@ -172,7 +172,7 @@ class PWAPackager:
     def _process_android_icon(self, source_icon: str, mipmap_dir: Path, size: int):
         """Process icon for Android with proper shape and padding"""
         try:
-            from PIL import Image, ImageOps
+            from PIL import Image, ImageOps, ImageDraw
 
             # Open and resize the icon
             img = Image.open(source_icon)
@@ -181,22 +181,34 @@ class PWAPackager:
             desired_size = size
             img = ImageOps.fit(img, (int(desired_size * 0.75), int(desired_size * 0.75)), Image.Resampling.LANCZOS)
 
-            # Create a new square image with white background
-            background = Image.new('RGBA', (desired_size, desired_size), (0, 0, 0, 0))
+            # Create foreground layer with transparency
+            foreground = Image.new('RGBA', (desired_size, desired_size), (0, 0, 0, 0))
 
             # Calculate padding
             offset = (desired_size - img.size[0]) // 2
 
-            # Paste the resized image onto the background
-            background.paste(img, (offset, offset))
+            # Paste the resized image onto the foreground
+            foreground.paste(img, (offset, offset))
+
+            # Create circular mask
+            mask = Image.new('L', (desired_size, desired_size), 0)
+            draw = ImageDraw.Draw(mask)
+            draw.ellipse([0, 0, desired_size, desired_size], fill=255)
+
+            # Apply circular mask to foreground
+            foreground.putalpha(mask)
 
             # Save foreground layer
-            background.save(mipmap_dir / "ic_launcher.png")
+            foreground.save(mipmap_dir / "ic_launcher_foreground.png")
 
             # Create adaptive icon background (solid color from manifest)
             background_color = self.background_color or "#FFFFFF"
-            adaptive_bg = Image.new('RGBA', (desired_size, desired_size), background_color)
-            adaptive_bg.save(mipmap_dir / "ic_launcher_background.png")
+            background = Image.new('RGBA', (desired_size, desired_size), background_color)
+            background.save(mipmap_dir / "ic_launcher_background.png")
+
+            # Create preview of the final icon (background + foreground)
+            final_icon = Image.alpha_composite(background.convert('RGBA'), foreground)
+            final_icon.save(mipmap_dir / "ic_launcher.png")
 
             print(f"{Fore.GREEN}Created adaptive icon for size {size}x{size}{Style.RESET_ALL}")
             return True
@@ -211,24 +223,36 @@ class PWAPackager:
 
             # Open and resize the icon
             img = Image.open(source_icon)
-            img = img.resize((size, size), Image.Resampling.LANCZOS)
+
+            # Calculate the target size (macOS icons are typically 80% of the container)
+            target_size = int(size * 0.8)  # Adjusted from 0.75 to 0.8
+            img = img.resize((target_size, target_size), Image.Resampling.LANCZOS)
+
+            # Create new image with padding
+            padded = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+
+            # Calculate padding
+            padding = (size - target_size) // 2
 
             # Create mask for rounded corners
-            mask = Image.new('L', (size, size), 0)
+            mask = Image.new('L', (target_size, target_size), 0)
             draw = ImageDraw.Draw(mask)
 
             # Calculate corner radius (macOS style)
-            radius = size // 4  # macOS-style corner radius
+            radius = target_size // 4  # macOS-style corner radius
 
             # Draw rounded rectangle on mask
-            draw.rounded_rectangle([(0, 0), (size-1, size-1)], radius=radius, fill=255)
+            draw.rounded_rectangle([0, 0, target_size, target_size], radius=radius, fill=255)
 
-            # Apply mask
-            output = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-            output.paste(img, mask=mask)
+            # Apply mask to resized image
+            img.putalpha(mask)
+
+            # Paste onto padded background
+            padded.paste(img, (padding, padding))
 
             # Save the processed icon
-            output.save(output_path)
+            padded.save(output_path)
+            print(f"{Fore.GREEN}Processed macOS icon for size {size}x{size}{Style.RESET_ALL}")
             return True
         except Exception as e:
             print(f"{Fore.YELLOW}Warning: Could not process macOS icon: {e}{Style.RESET_ALL}")
@@ -491,6 +515,14 @@ dependencies {
         android:roundIcon="@mipmap/ic_launcher"
         android:label="{self.app_name}"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+
+        <meta-data
+            android:name="android.app.icon_background"
+            android:resource="@mipmap/ic_launcher_background" />
+        <meta-data
+            android:name="android.app.icon_foreground"
+            android:resource="@mipmap/ic_launcher_foreground" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -528,15 +560,47 @@ public class MainActivity extends Activity {{
 """
 
     def _get_macos_main_swift(self):
+        # First, let's parse shortcuts from manifest
+        shortcuts_menu = ""
+        if self.manifest and 'shortcuts' in self.manifest:
+            shortcuts = []
+            for idx, shortcut in enumerate(self.manifest['shortcuts']):
+                if 'name' in shortcut and 'url' in shortcut:
+                    # Create menu item for each shortcut
+                    key_equivalent = str(idx + 1) if idx < 9 else ""  # Use numbers 1-9 as shortcuts
+                    shortcuts.append(f"""
+        shortcutsMenu.addItem(withTitle: "{shortcut['name']}",
+                            action: #selector(loadURL(_:)),
+                            keyEquivalent: "{key_equivalent}")
+        shortcutURLs["{shortcut['name']}"] = "{shortcut['url']}"
+""")
+            if shortcuts:
+                shortcuts_menu = """
+        // Shortcuts menu
+        let shortcutsMenuItem = NSMenuItem()
+        let shortcutsMenu = NSMenu(title: "Shortcuts")
+        shortcutsMenuItem.submenu = shortcutsMenu
+
+""" + "\n".join(shortcuts) + """
+        mainMenu.addItem(shortcutsMenuItem)
+"""
+
         return f"""
 import Cocoa
 import WebKit
+import JavaScriptCore
 
 class AppDelegate: NSObject, NSApplicationDelegate {{
     var window: NSWindow!
     var webView: WKWebView!
+    var shortcutURLs: [String: String] = [:]
+    var navigationMenu: NSMenu?
 
     func applicationDidFinishLaunching(_ notification: Notification) {{
+        // Create the main menu
+        setupMenu()
+
+        // Setup window
         let windowRect = NSRect(x: 0, y: 0, width: 1024, height: 768)
         window = NSWindow(
             contentRect: windowRect,
@@ -548,8 +612,40 @@ class AppDelegate: NSObject, NSApplicationDelegate {{
         window.title = "{self.app_name}"
         window.center()
 
-        webView = WKWebView(frame: window.contentView!.bounds)
+        // Setup WebView with navigation
+        let config = WKWebViewConfiguration()
+        let userContentController = WKUserContentController()
+        config.userContentController = userContentController
+
+        webView = WKWebView(frame: window.contentView!.bounds, configuration: config)
+        webView.navigationDelegate = self
+        webView.allowsBackForwardNavigationGestures = true
         webView.autoresizingMask = [.width, .height]
+
+        // Add script message handler for navigation items
+        userContentController.add(self, name: "navItems")
+
+        // Inject JavaScript to find navigation items
+        let scriptSource = "function findNavItems() {{ " +
+            "const navItems = []; " +
+            "const navElements = document.querySelectorAll(\\"nav a, header a, .nav a, .navbar a, .navigation a\\"); " +
+            "navElements.forEach(link => {{ " +
+                "if (link.textContent.trim() && link.href) {{ " +
+                    "navItems.push({{ " +
+                        "title: link.textContent.trim(), " +
+                        "url: link.href " +
+                    "}}); " +
+                "}} " +
+            "}}); " +
+            "window.webkit.messageHandlers.navItems.postMessage(navItems); " +
+        "}} " +
+        "document.addEventListener(\\"DOMContentLoaded\\", findNavItems); " +
+        "setTimeout(findNavItems, 1000);"
+
+        let script = WKUserScript(source: scriptSource,
+                                injectionTime: .atDocumentEnd,
+                                forMainFrameOnly: true)
+        userContentController.addUserScript(script)
 
         if let url = URL(string: "{self.url}") {{
             webView.load(URLRequest(url: url))
@@ -557,6 +653,123 @@ class AppDelegate: NSObject, NSApplicationDelegate {{
 
         window.contentView?.addSubview(webView)
         window.makeKeyAndOrderFront(nil)
+    }}
+
+    func setupMenu() {{
+        let mainMenu = NSMenu()
+
+        // App menu
+        let appMenuItem = NSMenuItem()
+        let appMenu = NSMenu()
+        appMenuItem.submenu = appMenu
+
+        let aboutItem = NSMenuItem(
+            title: "About {self.app_name}",
+            action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
+            keyEquivalent: ""
+        )
+        appMenu.addItem(aboutItem)
+        appMenu.addItem(NSMenuItem.separator())
+
+        let quitItem = NSMenuItem(
+            title: "Quit {self.app_name}",
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+        appMenu.addItem(quitItem)
+        mainMenu.addItem(appMenuItem)
+
+        // Edit menu
+        let editMenuItem = NSMenuItem()
+        let editMenu = NSMenu(title: "Edit")
+        editMenuItem.submenu = editMenu
+
+        editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        mainMenu.addItem(editMenuItem)
+
+        // View menu
+        let viewMenuItem = NSMenuItem()
+        let viewMenu = NSMenu(title: "View")
+        viewMenuItem.submenu = viewMenu
+
+        viewMenu.addItem(withTitle: "Back", action: #selector(navigateBack), keyEquivalent: "[")
+        viewMenu.addItem(withTitle: "Forward", action: #selector(navigateForward), keyEquivalent: "]")
+        viewMenu.addItem(withTitle: "Reload", action: #selector(reloadPage), keyEquivalent: "r")
+        mainMenu.addItem(viewMenuItem)
+
+        // Navigation menu
+        let navMenuItem = NSMenuItem()
+        navigationMenu = NSMenu(title: "Navigation")
+        navMenuItem.submenu = navigationMenu
+        mainMenu.addItem(navMenuItem)
+
+        NSApplication.shared.mainMenu = mainMenu
+    }}
+
+    @objc func navigateBack(_ sender: Any?) {{
+        if webView.canGoBack {{
+            webView.goBack()
+        }}
+    }}
+
+    @objc func navigateForward(_ sender: Any?) {{
+        if webView.canGoForward {{
+            webView.goForward()
+        }}
+    }}
+
+    @objc func reloadPage(_ sender: Any?) {{
+        webView.reload()
+    }}
+
+    @objc func loadURL(_ sender: NSMenuItem) {{
+        if let urlString = shortcutURLs[sender.title],
+           let url = URL(string: urlString.hasPrefix("http") ? urlString : "{self.url}" + urlString) {{
+            webView.load(URLRequest(url: url))
+        }}
+    }}
+
+    func updateNavigationMenu(with items: [[String: String]]) {{
+        DispatchQueue.main.async {{
+            self.navigationMenu?.removeAllItems()
+
+            for (index, item) in items.enumerated() {{
+                if let title = item["title"], let urlString = item["url"] {{
+                    let menuItem = NSMenuItem(
+                        title: title,
+                        action: #selector(self.loadURL(_:)),
+                        keyEquivalent: ""
+                    )
+                    menuItem.target = self
+                    self.shortcutURLs[title] = urlString
+                    self.navigationMenu?.addItem(menuItem)
+
+                    if index > 0 && index % 5 == 0 {{
+                        self.navigationMenu?.addItem(NSMenuItem.separator())
+                    }}
+                }}
+            }}
+        }}
+    }}
+}}
+
+// Add WKScriptMessageHandler
+extension AppDelegate: WKScriptMessageHandler {{
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {{
+        if message.name == "navItems",
+           let items = message.body as? [[String: String]] {{
+            updateNavigationMenu(with: items)
+        }}
+    }}
+}}
+
+// Add WebView navigation delegate
+extension AppDelegate: WKNavigationDelegate {{
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {{
+        window.title = webView.title ?? "{self.app_name}"
     }}
 }}
 
@@ -664,3 +877,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

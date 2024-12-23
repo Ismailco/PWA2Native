@@ -53,7 +53,7 @@ pip install .
 Basic usage:
 
 ```bash
-./pwa2native.py https://example.com --name "My PWA" --platforms android,macos
+pwa2native https://example.com --name "My PWA" --platforms android,macos
 ```
 
 ### 🎮 Arguments
@@ -69,13 +69,13 @@ Basic usage:
 Package for all platforms:
 
 ```bash
-python pwa2native.py https://my-pwa.com --name "My PWA"
+pwa2native https://my-pwa.com --name "My PWA"
 ```
 
 Package only for Android:
 
 ```bash
-python pwa2native.py https://my-pwa.com --name "My PWA" --platforms android
+pwa2native https://my-pwa.com --name "My PWA" --platforms android
 ```
 
 ## 🛠️ Platform-Specific Build Instructions

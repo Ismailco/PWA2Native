@@ -45,6 +45,7 @@ To install PWA2Native, clone the repository and run the setup script:
 ```bash
 git clone https://github.com/ismailco/PWA2Native.git
 cd PWA2Native
+pip install .
 ```
 
 ## 💻 Usage

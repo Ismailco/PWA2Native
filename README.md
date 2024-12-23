@@ -87,7 +87,6 @@ pwa2native https://my-pwa.com --name "My PWA" --platforms android
    ```
 2. Build the release APK:
    ```bash
-   gradle wrapper
    ./gradlew assembleRelease
    ```
 
